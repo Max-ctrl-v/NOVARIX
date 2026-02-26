@@ -36,10 +36,10 @@ export const generalLimiter = rateLimit({
   },
 });
 
-// Rate Limiting — Auth-Endpoints (5 Versuche pro 15 Min)
+// Rate Limiting — Auth-Endpoints (50 Versuche pro 15 Min)
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
