@@ -6,37 +6,21 @@ const notDeleted = { deletedAt: null };
 
 // Kompletter JSON-Export aller Daten (inkl. soft-deleted + Users)
 export async function exportAll() {
-  const [
-    users,
-    ueberProjekte,
-    projekte,
-    arbeitspakete,
-    mitarbeiter,
-    blockierungen,
-    zuweisungen,
-    apVerteilungen,
-    feiertage,
-    exportLog,
-    aenderungsLog,
-    exportCounter,
-  ] = await Promise.all([
-    // Users ohne passwordHash exportieren (Sicherheit)
-    prisma.user.findMany({
-      select: { id: true, email: true, name: true, role: true, createdAt: true, lastLogin: true },
-    }),
-    // ALLE Daten exportieren (inkl. soft-deleted für vollständige Wiederherstellung)
-    prisma.ueberProjekt.findMany(),
-    prisma.projekt.findMany(),
-    prisma.arbeitspaket.findMany(),
-    prisma.mitarbeiter.findMany(),
-    prisma.blockierung.findMany(),
-    prisma.zuweisung.findMany(),
-    prisma.aPVerteilung.findMany(),
-    prisma.feiertag.findMany(),
-    prisma.exportLog.findMany(),
-    prisma.aenderungsLog.findMany({ orderBy: { zeitpunkt: 'desc' } }),
-    prisma.exportCounter.findMany(),
-  ]);
+  // Sequentiell laden um Speicher-Spitzen zu vermeiden (SIGSEGV-Schutz)
+  const users = await prisma.user.findMany({
+    select: { id: true, email: true, name: true, role: true, createdAt: true, lastLogin: true },
+  });
+  const ueberProjekte = await prisma.ueberProjekt.findMany();
+  const projekte = await prisma.projekt.findMany();
+  const arbeitspakete = await prisma.arbeitspaket.findMany();
+  const mitarbeiter = await prisma.mitarbeiter.findMany();
+  const blockierungen = await prisma.blockierung.findMany();
+  const zuweisungen = await prisma.zuweisung.findMany();
+  const apVerteilungen = await prisma.aPVerteilung.findMany();
+  const feiertage = await prisma.feiertag.findMany();
+  const exportLog = await prisma.exportLog.findMany();
+  const aenderungsLog = await prisma.aenderungsLog.findMany({ orderBy: { zeitpunkt: 'desc' }, take: 10000 });
+  const exportCounter = await prisma.exportCounter.findMany();
 
   return {
     exportedAt: new Date().toISOString(),
