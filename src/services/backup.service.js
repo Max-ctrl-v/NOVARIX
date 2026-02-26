@@ -52,6 +52,7 @@ export async function importAll(importData, userId) {
 
   await prisma.$transaction(async (tx) => {
     // Alle bestehenden Daten löschen (in korrekter Reihenfolge wegen Foreign Keys)
+    // USERS werden NICHT gelöscht — Backup enthält keine Passwort-Hashes (Sicherheit)
     await tx.aPVerteilung.deleteMany();
     await tx.zuweisung.deleteMany();
     await tx.blockierung.deleteMany();
@@ -64,24 +65,34 @@ export async function importAll(importData, userId) {
     await tx.exportCounter.deleteMany();
     // Änderungslog wird NICHT gelöscht (GoBD)
 
-    // Daten importieren
+    // Existierende User-IDs ermitteln (für FK-Validierung)
+    const existingUsers = await tx.user.findMany({ select: { id: true } });
+    const userIds = new Set(existingUsers.map(u => u.id));
+    const cleanUserRef = (data) => data.map(row => {
+      const cleaned = { ...row };
+      if (cleaned.createdBy && !userIds.has(cleaned.createdBy)) cleaned.createdBy = null;
+      if (cleaned.deletedBy && !userIds.has(cleaned.deletedBy)) cleaned.deletedBy = null;
+      return cleaned;
+    });
+
+    // Daten importieren (User-FKs bereinigen falls User nicht mehr existiert)
     if (d.ueberProjekte?.length) {
-      await tx.ueberProjekt.createMany({ data: d.ueberProjekte, skipDuplicates: true });
+      await tx.ueberProjekt.createMany({ data: cleanUserRef(d.ueberProjekte), skipDuplicates: true });
     }
     if (d.projekte?.length) {
-      await tx.projekt.createMany({ data: d.projekte, skipDuplicates: true });
+      await tx.projekt.createMany({ data: cleanUserRef(d.projekte), skipDuplicates: true });
     }
     if (d.arbeitspakete?.length) {
-      await tx.arbeitspaket.createMany({ data: d.arbeitspakete, skipDuplicates: true });
+      await tx.arbeitspaket.createMany({ data: cleanUserRef(d.arbeitspakete), skipDuplicates: true });
     }
     if (d.mitarbeiter?.length) {
-      await tx.mitarbeiter.createMany({ data: d.mitarbeiter, skipDuplicates: true });
+      await tx.mitarbeiter.createMany({ data: cleanUserRef(d.mitarbeiter), skipDuplicates: true });
     }
     if (d.blockierungen?.length) {
-      await tx.blockierung.createMany({ data: d.blockierungen, skipDuplicates: true });
+      await tx.blockierung.createMany({ data: cleanUserRef(d.blockierungen), skipDuplicates: true });
     }
     if (d.zuweisungen?.length) {
-      await tx.zuweisung.createMany({ data: d.zuweisungen, skipDuplicates: true });
+      await tx.zuweisung.createMany({ data: cleanUserRef(d.zuweisungen), skipDuplicates: true });
     }
     if (d.apVerteilungen?.length) {
       await tx.aPVerteilung.createMany({ data: d.apVerteilungen, skipDuplicates: true });
