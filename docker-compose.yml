@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Datenbank
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: novarix_db
+      POSTGRES_USER: novarix_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-NovarixSecure2024!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novarix_user -d novarix_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Novarix Backend
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://novarix_user:${DB_PASSWORD:-NovarixSecure2024!}@postgres:5432/novarix_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:-BITTE_AENDERN_64_ZEICHEN_MINIMUM_SICHER_GENERIEREN_1234567890abcdef}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-BITTE_AENDERN_ANDERER_64_ZEICHEN_STRING_SICHER_GENERIEREN_abcdef}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5000}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-maxnodes@gmail.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-SICHERES_PASSWORT_SETZEN}
+      ADMIN_NAME: ${ADMIN_NAME:-Max}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+    driver: local

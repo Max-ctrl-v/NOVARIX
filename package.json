@@ -1,0 +1,32 @@
+{
+  "name": "novarix-backend",
+  "version": "1.0.0",
+  "description": "Backend für Clusterix 2.0 (Novarix) - Rechtlich konforme Projektmanagement-API",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "npx prisma migrate deploy && node src/server.js",
+    "build": "npx prisma generate",
+    "db:generate": "npx prisma generate",
+    "db:migrate": "npx prisma migrate dev",
+    "db:migrate:prod": "npx prisma migrate deploy",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "npx prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "node-cron": "^3.0.3",
+    "prisma": "^6.3.0",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {}
+}

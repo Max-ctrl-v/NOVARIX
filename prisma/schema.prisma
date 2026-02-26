@@ -1,0 +1,313 @@
+// Novarix Datenbank-Schema
+// Rechtlich kritisch — ACID-konform, Soft-Delete, GoBD Audit-Trail
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────
+
+enum UserRole {
+  admin
+  editor
+  viewer
+}
+
+enum UnternehmensTyp {
+  grossunternehmen
+  kmu
+}
+
+enum ProjektStatus {
+  geplant
+  aktiv
+  abgeschlossen
+}
+
+enum APStatus {
+  offen
+  in_bearbeitung
+  abgeschlossen
+}
+
+enum BlockierungsTyp {
+  urlaub
+  krank
+}
+
+// ─── Benutzer ─────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  role          UserRole  @default(viewer)
+  refreshToken  String?   @map("refresh_token") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  lastLogin     DateTime? @map("last_login") @db.Timestamptz
+
+  // Relationen
+  createdUeberProjekte  UeberProjekt[]   @relation("CreatedByUser")
+  deletedUeberProjekte  UeberProjekt[]   @relation("DeletedByUser")
+  createdProjekte       Projekt[]        @relation("ProjektCreatedBy")
+  deletedProjekte       Projekt[]        @relation("ProjektDeletedBy")
+  deletedArbeitspakete  Arbeitspaket[]   @relation("APDeletedBy")
+  createdMitarbeiter    Mitarbeiter[]    @relation("MACreatedBy")
+  deletedMitarbeiter    Mitarbeiter[]    @relation("MADeletedBy")
+  deletedBlockierungen  Blockierung[]    @relation("BlockDeletedBy")
+  createdZuweisungen    Zuweisung[]      @relation("ZuwCreatedBy")
+  deletedZuweisungen    Zuweisung[]      @relation("ZuwDeletedBy")
+  aenderungsLogs        AenderungsLog[]
+  exportLogs            ExportLog[]
+
+  @@map("users")
+}
+
+// ─── Über-Projekte (Firmen) ───────────────────────────────────
+
+model UeberProjekt {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @db.VarChar(255)
+  beschreibung    String?         @db.Text
+  unternehmensTyp UnternehmensTyp @map("unternehmens_typ")
+  version         Int             @default(1)
+  createdBy       String?         @map("created_by") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime?       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz
+  deletedBy       String?         @map("deleted_by") @db.Uuid
+
+  // Relationen
+  creator   User?      @relation("CreatedByUser", fields: [createdBy], references: [id])
+  deleter   User?      @relation("DeletedByUser", fields: [deletedBy], references: [id])
+  projekte  Projekt[]
+  zuweisungen Zuweisung[]
+
+  @@index([deletedAt])
+  @@map("ueber_projekte")
+}
+
+// ─── Projekte ─────────────────────────────────────────────────
+
+model Projekt {
+  id              String        @id @default(uuid()) @db.Uuid
+  ueberProjektId  String        @map("ueber_projekt_id") @db.Uuid
+  name            String        @db.VarChar(255)
+  beschreibung    String?       @db.Text
+  status          ProjektStatus @default(geplant)
+  startDatum      DateTime?     @map("start_datum") @db.Date
+  endDatum        DateTime?     @map("end_datum") @db.Date
+  version         Int           @default(1)
+  createdBy       String?       @map("created_by") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime?     @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
+  deletedBy       String?       @map("deleted_by") @db.Uuid
+
+  // Relationen
+  ueberProjekt   UeberProjekt   @relation(fields: [ueberProjektId], references: [id])
+  creator        User?          @relation("ProjektCreatedBy", fields: [createdBy], references: [id])
+  deleter        User?          @relation("ProjektDeletedBy", fields: [deletedBy], references: [id])
+  arbeitspakete  Arbeitspaket[]
+  zuweisungen    Zuweisung[]
+
+  @@index([ueberProjektId])
+  @@index([deletedAt])
+  @@map("projekte")
+}
+
+// ─── Arbeitspakete (Baumstruktur) ─────────────────────────────
+
+model Arbeitspaket {
+  id           String    @id @default(uuid()) @db.Uuid
+  projektId    String    @map("projekt_id") @db.Uuid
+  parentId     String?   @map("parent_id") @db.Uuid
+  name         String    @db.VarChar(255)
+  beschreibung String?   @db.Text
+  status       APStatus  @default(offen)
+  startDatum   DateTime? @map("start_datum") @db.Date
+  endDatum     DateTime? @map("end_datum") @db.Date
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy    String?   @map("deleted_by") @db.Uuid
+
+  // Relationen
+  projekt            Projekt          @relation(fields: [projektId], references: [id])
+  parent             Arbeitspaket?    @relation("APHierarchie", fields: [parentId], references: [id])
+  children           Arbeitspaket[]   @relation("APHierarchie")
+  deleter            User?            @relation("APDeletedBy", fields: [deletedBy], references: [id])
+  apVerteilungen     APVerteilung[]
+
+  @@index([projektId])
+  @@index([parentId])
+  @@index([deletedAt])
+  @@map("arbeitspakete")
+}
+
+// ─── Mitarbeiter ──────────────────────────────────────────────
+
+model Mitarbeiter {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String    @db.VarChar(255)
+  position         String?   @db.VarChar(255)
+  wochenStunden    Decimal   @default(40) @map("wochen_stunden") @db.Decimal(4, 1)
+  jahresUrlaub     Int       @default(30) @map("jahres_urlaub")
+  jahresgehalt     Decimal?  @map("jahresgehalt") @db.Decimal(12, 2)
+  lohnnebenkosten  Decimal?  @map("lohnnebenkosten") @db.Decimal(12, 2)
+  feiertagePflicht Boolean   @default(true) @map("feiertage_pflicht")
+  version          Int       @default(1)
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy        String?   @map("deleted_by") @db.Uuid
+
+  // Relationen
+  creator       User?          @relation("MACreatedBy", fields: [createdBy], references: [id])
+  deleter       User?          @relation("MADeletedBy", fields: [deletedBy], references: [id])
+  blockierungen Blockierung[]
+  zuweisungen   Zuweisung[]
+
+  @@index([deletedAt])
+  @@map("mitarbeiter")
+}
+
+// ─── Blockierungen (Urlaub / Krank) ──────────────────────────
+
+model Blockierung {
+  id            String          @id @default(uuid()) @db.Uuid
+  mitarbeiterId String          @map("mitarbeiter_id") @db.Uuid
+  von           DateTime        @db.Date
+  bis           DateTime        @db.Date
+  typ           BlockierungsTyp
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz
+  deletedBy     String?         @map("deleted_by") @db.Uuid
+
+  // Relationen
+  mitarbeiter   Mitarbeiter     @relation(fields: [mitarbeiterId], references: [id])
+  deleter       User?           @relation("BlockDeletedBy", fields: [deletedBy], references: [id])
+
+  @@index([mitarbeiterId])
+  @@index([deletedAt])
+  @@map("blockierungen")
+}
+
+// ─── Zuweisungen ──────────────────────────────────────────────
+
+model Zuweisung {
+  id              String    @id @default(uuid()) @db.Uuid
+  mitarbeiterId   String    @map("mitarbeiter_id") @db.Uuid
+  projektId       String    @map("projekt_id") @db.Uuid
+  ueberProjektId  String    @map("ueber_projekt_id") @db.Uuid
+  prozentAnteil   Decimal   @map("prozent_anteil") @db.Decimal(5, 2)
+  von             DateTime  @db.Date
+  bis             DateTime  @db.Date
+  version         Int       @default(1)
+  createdBy       String?   @map("created_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+  deletedBy       String?   @map("deleted_by") @db.Uuid
+
+  // Relationen
+  mitarbeiter      Mitarbeiter      @relation(fields: [mitarbeiterId], references: [id])
+  projekt          Projekt          @relation(fields: [projektId], references: [id])
+  ueberProjekt     UeberProjekt     @relation(fields: [ueberProjektId], references: [id])
+  creator          User?            @relation("ZuwCreatedBy", fields: [createdBy], references: [id])
+  deleter          User?            @relation("ZuwDeletedBy", fields: [deletedBy], references: [id])
+  apVerteilungen   APVerteilung[]
+
+  @@index([mitarbeiterId])
+  @@index([projektId])
+  @@index([ueberProjektId])
+  @@index([deletedAt])
+  @@map("zuweisungen")
+}
+
+// ─── AP-Verteilung ────────────────────────────────────────────
+
+model APVerteilung {
+  id              String  @id @default(uuid()) @db.Uuid
+  zuweisungId     String  @map("zuweisung_id") @db.Uuid
+  arbeitspaketId  String  @map("arbeitspaket_id") @db.Uuid
+  prozentAnteil   Decimal @map("prozent_anteil") @db.Decimal(5, 2)
+
+  // Relationen
+  zuweisung     Zuweisung    @relation(fields: [zuweisungId], references: [id], onDelete: Cascade)
+  arbeitspaket  Arbeitspaket @relation(fields: [arbeitspaketId], references: [id], onDelete: Cascade)
+
+  @@unique([zuweisungId, arbeitspaketId])
+  @@map("ap_verteilung")
+}
+
+// ─── Feiertage ────────────────────────────────────────────────
+
+model Feiertag {
+  id    String   @id @default(uuid()) @db.Uuid
+  datum DateTime @unique @db.Date
+  name  String   @db.VarChar(255)
+
+  @@map("feiertage")
+}
+
+// ─── Änderungslog (GoBD — NIEMALS löschbar) ───────────────────
+
+model AenderungsLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  zeitpunkt   DateTime @default(now()) @db.Timestamptz
+  aktion      String   @db.VarChar(50)
+  entitaet    String   @db.VarChar(100)
+  entitaetId  String   @map("entitaet_id") @db.Uuid
+  name        String?  @db.VarChar(255)
+  details     String?  @db.Text
+  vorherJson  Json?    @map("vorher_json")
+  nachherJson Json?    @map("nachher_json")
+
+  // Relationen
+  user User? @relation(fields: [userId], references: [id])
+
+  // KEIN deletedAt — Audit-Log darf NIEMALS gelöscht werden (GoBD)
+  @@index([zeitpunkt(sort: Desc)])
+  @@index([entitaet, entitaetId])
+  @@map("aenderungs_log")
+}
+
+// ─── Export-Log ───────────────────────────────────────────────
+
+model ExportLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  dokumentNummer String   @unique @map("dokument_nummer") @db.VarChar(20)
+  typ            String   @db.VarChar(50)
+  referenzId     String?  @map("referenz_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  zeitraumVon    DateTime? @map("zeitraum_von") @db.Date
+  zeitraumBis    DateTime? @map("zeitraum_bis") @db.Date
+  datenHash      String   @map("daten_hash") @db.VarChar(64)
+
+  // Relationen
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("export_log")
+}
+
+// ─── Export-Counter (GoBD Dokumentnummern) ────────────────────
+
+model ExportCounter {
+  jahr    Int @id
+  counter Int @default(0)
+
+  @@map("export_counter")
+}
