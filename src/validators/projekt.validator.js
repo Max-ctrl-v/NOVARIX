@@ -15,4 +15,5 @@ export const updateProjektSchema = Joi.object({
   startDatum: Joi.string().isoDate().allow(null),
   endDatum: Joi.string().isoDate().allow(null),
   updatedAt: Joi.string().isoDate(),
+  version: Joi.number().integer(),
 }).min(1);

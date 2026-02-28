@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: novarix_db
       POSTGRES_USER: novarix_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-NovarixSecure2024!}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -27,14 +27,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://novarix_user:${DB_PASSWORD:-NovarixSecure2024!}@postgres:5432/novarix_db?schema=public
-      JWT_SECRET: ${JWT_SECRET:-BITTE_AENDERN_64_ZEICHEN_MINIMUM_SICHER_GENERIEREN_1234567890abcdef}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-BITTE_AENDERN_ANDERER_64_ZEICHEN_STRING_SICHER_GENERIEREN_abcdef}
+      DATABASE_URL: postgresql://novarix_user:${DB_PASSWORD:?DB_PASSWORD must be set}@postgres:5432/novarix_db?schema=public
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5000}
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
       ADMIN_EMAIL: ${ADMIN_EMAIL:-maxnodes@gmail.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-SICHERES_PASSWORT_SETZEN}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}
       ADMIN_NAME: ${ADMIN_NAME:-Max}
     ports:
       - "3000:3000"

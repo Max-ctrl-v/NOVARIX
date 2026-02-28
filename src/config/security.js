@@ -16,8 +16,8 @@ export const corsConfig = cors({
     // Kein Origin = Server-zu-Server oder Postman
     if (!origin) return callback(null, true);
     if (allowed.includes(origin)) return callback(null, true);
-    // Railway Preview-URLs erlauben
-    if (origin.endsWith('.railway.app')) return callback(null, true);
+    // Railway: nur eigene Production-URL erlauben
+    if (origin === 'https://novarix-backend-production.up.railway.app') return callback(null, true);
     callback(new Error(`CORS: ${origin} nicht erlaubt.`));
   },
   credentials: true,
@@ -36,10 +36,10 @@ export const generalLimiter = rateLimit({
   },
 });
 
-// Rate Limiting — Auth-Endpoints (50 Versuche pro 15 Min)
+// Rate Limiting — Auth-Endpoints (15 Versuche pro 15 Min)
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: {

@@ -77,18 +77,21 @@ export async function remove(id, userId) {
   });
   if (!existing) throw new AppError('Blockierung nicht gefunden.', 404);
 
-  await prisma.blockierung.update({
-    where: { id },
-    data: { deletedAt: new Date(), deletedBy: userId },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.blockierung.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedBy: userId },
+    });
 
-  await logChange({
-    userId,
-    aktion: 'gelöscht',
-    entitaet: 'Blockierung',
-    entitaetId: id,
-    name: `${existing.typ} (${existing.mitarbeiter.name})`,
-    details: `Blockierung für "${existing.mitarbeiter.name}" gelöscht.`,
-    vorherJson: existing,
+    await logChange({
+      userId,
+      aktion: 'gelöscht',
+      entitaet: 'Blockierung',
+      entitaetId: id,
+      name: `${existing.typ} (${existing.mitarbeiter.name})`,
+      details: `Blockierung für "${existing.mitarbeiter.name}" gelöscht.`,
+      vorherJson: existing,
+      tx,
+    });
   });
 }

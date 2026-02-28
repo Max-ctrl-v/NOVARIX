@@ -16,4 +16,5 @@ export const updateUeberProjektSchema = Joi.object({
   beschreibung: Joi.string().allow('', null),
   unternehmensTyp: Joi.string().valid('grossunternehmen', 'kmu'),
   updatedAt: Joi.string().isoDate(), // Für Optimistic Locking
+  version: Joi.number().integer(),
 }).min(1);

@@ -33,16 +33,19 @@ export async function remove(id, userId) {
   const existing = await prisma.feiertag.findUnique({ where: { id } });
   if (!existing) throw new AppError('Feiertag nicht gefunden.', 404);
 
-  // Audit-Log ZUERST schreiben (vor dem Löschen), damit GoBD-konform
-  await logChange({
-    userId,
-    aktion: 'gelöscht',
-    entitaet: 'Feiertag',
-    entitaetId: id,
-    name: existing.name,
-    details: `Feiertag "${existing.name}" am ${existing.datum.toISOString().split('T')[0]} gelöscht.`,
-    vorherJson: existing,
-  });
+  await prisma.$transaction(async (tx) => {
+    // Audit-Log ZUERST schreiben (vor dem Löschen), damit GoBD-konform
+    await logChange({
+      userId,
+      aktion: 'gelöscht',
+      entitaet: 'Feiertag',
+      entitaetId: id,
+      name: existing.name,
+      details: `Feiertag "${existing.name}" am ${existing.datum.toISOString().split('T')[0]} gelöscht.`,
+      vorherJson: existing,
+      tx,
+    });
 
-  await prisma.feiertag.delete({ where: { id } });
+    await tx.feiertag.delete({ where: { id } });
+  });
 }

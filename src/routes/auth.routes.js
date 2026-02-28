@@ -11,7 +11,7 @@ const router = Router();
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 
 // POST /api/v1/auth/refresh
-router.post('/refresh', validate(refreshSchema), authController.refresh);
+router.post('/refresh', authLimiter, validate(refreshSchema), authController.refresh);
 
 // POST /api/v1/auth/logout (geschützt)
 router.post('/logout', authenticate, authController.logout);

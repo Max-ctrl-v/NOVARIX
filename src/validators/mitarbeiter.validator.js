@@ -19,6 +19,7 @@ export const updateMitarbeiterSchema = Joi.object({
   lohnnebenkosten: Joi.number().min(0).allow(null),
   feiertagePflicht: Joi.boolean(),
   updatedAt: Joi.string().isoDate(),
+  version: Joi.number().integer(),
 }).min(1);
 
 const validateDateRange = (value, helpers) => {

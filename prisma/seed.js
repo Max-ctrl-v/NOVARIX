@@ -6,7 +6,10 @@ const prisma = new PrismaClient();
 async function main() {
   // Admin-Benutzer erstellen
   const adminEmail = process.env.ADMIN_EMAIL || 'maxnodes@gmail.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'NovarixAdmin2024!';
+  if (!process.env.ADMIN_PASSWORD) {
+    throw new Error('ADMIN_PASSWORD must be set');
+  }
+  const adminPassword = process.env.ADMIN_PASSWORD;
   const adminName = process.env.ADMIN_NAME || 'Max';
 
   const existingAdmin = await prisma.user.findUnique({

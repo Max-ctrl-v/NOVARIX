@@ -59,6 +59,13 @@ export function errorHandler(err, _req, res, _next) {
     return res.status(401).json({ error: 'Token abgelaufen' });
   }
 
+  // Body-Parser JSON-Syntaxfehler
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: 'Ungültiges JSON-Format.',
+    });
+  }
+
   // Unbekannter Fehler — NIEMALS interne Details an Client senden
   console.error('Unbehandelter Fehler:', err);
   res.status(500).json({

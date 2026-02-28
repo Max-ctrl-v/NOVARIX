@@ -27,4 +27,5 @@ export const updateZuweisungSchema = Joi.object({
   bis: Joi.string().isoDate(),
   arbeitspaketVerteilung: Joi.array().items(apVerteilungItem),
   updatedAt: Joi.string().isoDate(),
+  version: Joi.number().integer(),
 }).min(1).custom(validateDateRange);

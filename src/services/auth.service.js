@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/database.js';
 import { config } from '../config/env.js';
@@ -6,6 +7,11 @@ import { AppError } from '../middleware/errorHandler.js';
 import { logChange } from './auditLog.service.js';
 
 const BCRYPT_ROUNDS = 12;
+
+// Refresh Token hashen (SHA-256) bevor er in der DB gespeichert wird
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 // Access Token generieren (15 Min)
 function generateAccessToken(user) {
@@ -40,6 +46,10 @@ export async function login(email, password) {
     throw new AppError('Ungültige Anmeldedaten.', 401);
   }
 
+  if (user.email.startsWith('deleted_')) {
+    throw new AppError('Dieser Account wurde deaktiviert.', 401);
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     throw new AppError('Ungültige Anmeldedaten.', 401);
@@ -48,11 +58,11 @@ export async function login(email, password) {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // Refresh Token in DB speichern + lastLogin aktualisieren
+  // Refresh Token gehasht in DB speichern + lastLogin aktualisieren
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      refreshToken,
+      refreshToken: hashToken(refreshToken),
       lastLogin: new Date(),
     },
   });
@@ -82,7 +92,7 @@ export async function refreshTokens(oldRefreshToken) {
     where: { id: decoded.sub },
   });
 
-  if (!user || user.refreshToken !== oldRefreshToken) {
+  if (!user || user.refreshToken !== hashToken(oldRefreshToken)) {
     // Token wurde widerrufen oder stimmt nicht überein
     if (user) {
       // Sicherheit: Alle Tokens invalidieren
@@ -100,7 +110,7 @@ export async function refreshTokens(oldRefreshToken) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { refreshToken: newRefreshToken },
+    data: { refreshToken: hashToken(newRefreshToken) },
   });
 
   return { accessToken, refreshToken: newRefreshToken };
