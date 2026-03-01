@@ -12,7 +12,8 @@
     "db:migrate": "npx prisma migrate dev",
     "db:migrate:prod": "npx prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
@@ -30,5 +31,8 @@
     "nodemailer": "^6.9.16",
     "prisma": "^6.3.0",
     "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
   }
 }
