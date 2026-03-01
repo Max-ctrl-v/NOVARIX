@@ -5,8 +5,9 @@ export const loginSchema = Joi.object({
     'string.email': 'Bitte eine gültige E-Mail-Adresse eingeben.',
     'any.required': 'E-Mail ist erforderlich.',
   }),
-  password: Joi.string().min(8).required().messages({
+  password: Joi.string().min(8).max(72).required().messages({
     'string.min': 'Passwort muss mindestens 8 Zeichen lang sein.',
+    'string.max': 'Passwort darf maximal 72 Zeichen lang sein.',
     'any.required': 'Passwort ist erforderlich.',
   }),
 });
@@ -15,8 +16,9 @@ export const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required().messages({
     'any.required': 'Aktuelles Passwort ist erforderlich.',
   }),
-  newPassword: Joi.string().min(8).required().messages({
+  newPassword: Joi.string().min(8).max(72).required().messages({
     'string.min': 'Neues Passwort muss mindestens 8 Zeichen lang sein.',
+    'string.max': 'Neues Passwort darf maximal 72 Zeichen lang sein.',
     'any.required': 'Neues Passwort ist erforderlich.',
   }),
 });
@@ -36,8 +38,9 @@ export const resetPasswordSchema = Joi.object({
   token: Joi.string().required().messages({
     'any.required': 'Reset-Token ist erforderlich.',
   }),
-  newPassword: Joi.string().min(8).required().messages({
+  newPassword: Joi.string().min(8).max(72).required().messages({
     'string.min': 'Neues Passwort muss mindestens 8 Zeichen lang sein.',
+    'string.max': 'Neues Passwort darf maximal 72 Zeichen lang sein.',
     'any.required': 'Neues Passwort ist erforderlich.',
   }),
 });

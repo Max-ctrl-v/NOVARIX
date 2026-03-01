@@ -38,6 +38,9 @@ function generateRefreshToken(user) {
   );
 }
 
+// Dummy-Hash für Timing-Attack-Schutz (einmalig generiert)
+const DUMMY_HASH = '$2b$12$LJ3m4ys3Lz0QqV8Fz8z8z.DUMMY000000000000000000000000000';
+
 // Login
 export async function login(email, password, { ip, userAgent } = {}) {
   const user = await prisma.user.findUnique({
@@ -45,6 +48,8 @@ export async function login(email, password, { ip, userAgent } = {}) {
   });
 
   if (!user) {
+    // Timing-Attack-Schutz: bcrypt.compare auch bei nicht existierendem User ausführen
+    await bcrypt.compare(password, DUMMY_HASH);
     logSession({ email, aktion: 'login_failed', ip, userAgent, details: 'Benutzer nicht gefunden' }).catch(() => {});
     throw new AppError('Ungültige Anmeldedaten.', 401);
   }

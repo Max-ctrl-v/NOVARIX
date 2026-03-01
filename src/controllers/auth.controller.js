@@ -25,8 +25,8 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const refresh = asyncHandler(async (req, res) => {
-  // Read refresh token from cookie (fallback to body for backwards compat)
-  const refreshToken = req.cookies?.[REFRESH_COOKIE] || req.body?.refreshToken;
+  // Read refresh token exclusively from HttpOnly cookie (no body fallback)
+  const refreshToken = req.cookies?.[REFRESH_COOKIE];
   if (!refreshToken) {
     return res.status(401).json({ error: 'Kein Refresh Token vorhanden.' });
   }
