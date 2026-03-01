@@ -73,7 +73,11 @@ const server = app.listen(config.port, '0.0.0.0', async () => {
   console.log(`Novarix Backend läuft auf Port ${config.port} (${config.nodeEnv})`);
 
   // Admin-Account sicherstellen
-  await ensureAdminExists();
+  try {
+    await ensureAdminExists();
+  } catch (err) {
+    console.error('KRITISCH: Admin-Account konnte nicht sichergestellt werden – Datenbank erreichbar?', err);
+  }
 
   // Cron-Jobs starten
   startTrashCleanup();
@@ -96,5 +100,16 @@ function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ─── Unbehandelte Fehler abfangen ────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unbehandelte Promise-Rejection:', reason);
+  gracefulShutdown('unhandledRejection');
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Unbehandelter Fehler (uncaughtException):', err);
+  gracefulShutdown('uncaughtException');
+});
 
 export default app;

@@ -61,6 +61,14 @@ export async function update(id, data, actingUserId) {
   });
   if (!existing) throw new AppError('Benutzer nicht gefunden.', 404);
 
+  // Letzten Admin schützen: Rolle darf nicht geändert werden
+  if (data.role && data.role !== 'admin' && existing.role === 'admin') {
+    const adminCount = await prisma.user.count({ where: { role: 'admin', deletedAt: null } });
+    if (adminCount <= 1) {
+      throw new AppError('Der letzte Admin kann nicht herabgestuft werden.', 400);
+    }
+  }
+
   const updateData = {};
   if (data.email) updateData.email = data.email.toLowerCase().trim();
   if (data.name) updateData.name = data.name;
@@ -100,6 +108,14 @@ export async function remove(id, actingUserId) {
 
   if (user.id === actingUserId) {
     throw new AppError('Sie können Ihren eigenen Account nicht löschen.', 400);
+  }
+
+  // Letzten Admin schützen
+  if (user.role === 'admin') {
+    const adminCount = await prisma.user.count({ where: { role: 'admin', deletedAt: null } });
+    if (adminCount <= 1) {
+      throw new AppError('Der letzte Admin kann nicht gelöscht werden.', 400);
+    }
   }
 
   // Soft-delete: Account deaktivieren statt hart löschen

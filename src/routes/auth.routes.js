@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authLimiter } from '../config/security.js';
+import { authLimiter, generalLimiter } from '../config/security.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { loginSchema, changePasswordSchema, refreshSchema } from '../validators/auth.validator.js';
@@ -11,7 +11,7 @@ const router = Router();
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 
 // POST /api/v1/auth/refresh
-router.post('/refresh', authLimiter, validate(refreshSchema), authController.refresh);
+router.post('/refresh', generalLimiter, validate(refreshSchema), authController.refresh);
 
 // POST /api/v1/auth/logout (geschützt)
 router.post('/logout', authenticate, authController.logout);

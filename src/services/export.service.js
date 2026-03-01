@@ -36,12 +36,14 @@ export async function registerExport(data, userId) {
 }
 
 export async function getNextDokumentNummer() {
-  const nummer = await nextDokumentNummer();
-  // Rollback: den Counter wieder dekrementieren da wir nur abfragen
   const jahr = new Date().getFullYear();
-  await prisma.exportCounter.update({
+
+  // Nur lesen, nicht inkrementieren – kein atomarer Seiteneffekt
+  const existing = await prisma.exportCounter.findUnique({
     where: { jahr },
-    data: { counter: { decrement: 1 } },
   });
-  return { dokumentNummer: nummer };
+
+  const nextCounter = existing ? existing.counter + 1 : 1;
+  const nummer = String(nextCounter).padStart(4, '0');
+  return { dokumentNummer: `CLX-${jahr}-${nummer}` };
 }
