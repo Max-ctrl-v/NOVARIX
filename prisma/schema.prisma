@@ -49,12 +49,14 @@ model User {
   passwordHash  String    @map("password_hash") @db.VarChar(255)
   name          String    @db.VarChar(255)
   role          UserRole  @default(viewer)
-  refreshToken        String?   @map("refresh_token") @db.Text
-  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
-  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime? @updatedAt @map("updated_at") @db.Timestamptz
-  lastLogin     DateTime? @map("last_login") @db.Timestamptz
+  refreshToken          String?   @map("refresh_token") @db.Text
+  failedLoginAttempts   Int       @default(0) @map("failed_login_attempts")
+  lockedUntil           DateTime? @map("locked_until") @db.Timestamptz
+  passwordResetToken    String?   @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires  DateTime? @map("password_reset_expires") @db.Timestamptz
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+  lastLogin             DateTime? @map("last_login") @db.Timestamptz
 
   // Relationen
   createdUeberProjekte  UeberProjekt[]   @relation("CreatedByUser")
@@ -120,9 +122,11 @@ model Projekt {
   deleter        User?          @relation("ProjektDeletedBy", fields: [deletedBy], references: [id])
   arbeitspakete  Arbeitspaket[]
   zuweisungen    Zuweisung[]
+  dokumente      Dokument[]
 
   @@index([ueberProjektId])
   @@index([deletedAt])
+  @@index([ueberProjektId, deletedAt])
   @@map("projekte")
 }
 
@@ -153,6 +157,7 @@ model Arbeitspaket {
   @@index([projektId])
   @@index([parentId])
   @@index([deletedAt])
+  @@index([projektId, deletedAt])
   @@map("arbeitspakete")
 }
 
@@ -202,6 +207,7 @@ model Blockierung {
 
   @@index([mitarbeiterId])
   @@index([deletedAt])
+  @@index([mitarbeiterId, deletedAt])
   @@map("blockierungen")
 }
 
@@ -234,6 +240,8 @@ model Zuweisung {
   @@index([projektId])
   @@index([ueberProjektId])
   @@index([deletedAt])
+  @@index([projektId, deletedAt])
+  @@index([mitarbeiterId, deletedAt])
   @@map("zuweisungen")
 }
 
@@ -312,4 +320,39 @@ model ExportCounter {
   counter Int @default(0)
 
   @@map("export_counter")
+}
+
+// ─── Dokumente (PDF-Uploads) ─────────────────────────────────
+
+model Dokument {
+  id        String   @id @default(uuid()) @db.Uuid
+  projektId String   @map("projekt_id") @db.Uuid
+  name      String   @db.VarChar(500)
+  size      Int
+  mimeType  String   @map("mime_type") @db.VarChar(100)
+  data      Bytes
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  projekt Projekt @relation(fields: [projektId], references: [id])
+
+  @@index([projektId])
+  @@map("dokumente")
+}
+
+// ─── Sitzungsprotokoll (Login/Logout/Aktionen) ──────────────
+
+model SessionLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  email     String   @db.VarChar(255)
+  aktion    String   @db.VarChar(50)
+  ip        String   @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.Text
+  details   String?  @db.Text
+  zeitpunkt DateTime @default(now()) @db.Timestamptz
+
+  @@index([userId])
+  @@index([zeitpunkt(sort: Desc)])
+  @@map("session_logs")
 }

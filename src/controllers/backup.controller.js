@@ -2,8 +2,7 @@ import * as service from '../services/backup.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const exportAll = asyncHandler(async (req, res) => {
-  const data = await service.exportAll();
-  res.json(data);
+  await service.streamExport(res);
 });
 
 export const importAll = asyncHandler(async (req, res) => {

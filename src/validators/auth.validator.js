@@ -24,3 +24,20 @@ export const changePasswordSchema = Joi.object({
 export const refreshSchema = Joi.object({
   refreshToken: Joi.string().optional(), // Token comes from HttpOnly cookie; body is fallback
 });
+
+export const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Bitte eine gültige E-Mail-Adresse eingeben.',
+    'any.required': 'E-Mail ist erforderlich.',
+  }),
+});
+
+export const resetPasswordSchema = Joi.object({
+  token: Joi.string().required().messages({
+    'any.required': 'Reset-Token ist erforderlich.',
+  }),
+  newPassword: Joi.string().min(8).required().messages({
+    'string.min': 'Neues Passwort muss mindestens 8 Zeichen lang sein.',
+    'any.required': 'Neues Passwort ist erforderlich.',
+  }),
+});

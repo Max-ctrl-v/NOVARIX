@@ -3,49 +3,86 @@ import prisma from '../config/database.js';
 import { logChange } from './auditLog.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
-const notDeleted = { deletedAt: null };
+// Streaming JSON-Export aller Daten (inkl. soft-deleted + Users)
+// Schreibt JSON direkt in den Response-Stream um Speicher zu sparen
+export async function streamExport(res) {
+  const hash = crypto.createHash('sha256');
 
-// Kompletter JSON-Export aller Daten (inkl. soft-deleted + Users)
-export async function exportAll() {
-  // Sequentiell laden um Speicher-Spitzen zu vermeiden (SIGSEGV-Schutz)
+  // Schreibt in Response UND aktualisiert den Hash gleichzeitig
+  function w(str) { hash.update(str); res.write(str); }
+
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+  // JSON-Hülle öffnen
+  res.write(`{"exportedAt":"${new Date().toISOString()}","version":"2.1","data":`);
+
+  // --- Daten-Objekt (gehasht) ---
+  w('{');
+
+  // Kleine Entitäten sequentiell laden und streamen
   const users = await prisma.user.findMany({
     select: { id: true, email: true, name: true, role: true, createdAt: true, lastLogin: true },
   });
+  w(`"users":${JSON.stringify(users)}`);
+
   const ueberProjekte = await prisma.ueberProjekt.findMany();
+  w(`,"ueberProjekte":${JSON.stringify(ueberProjekte)}`);
+
   const projekte = await prisma.projekt.findMany();
+  w(`,"projekte":${JSON.stringify(projekte)}`);
+
   const arbeitspakete = await prisma.arbeitspaket.findMany();
+  w(`,"arbeitspakete":${JSON.stringify(arbeitspakete)}`);
+
   const mitarbeiter = await prisma.mitarbeiter.findMany();
+  w(`,"mitarbeiter":${JSON.stringify(mitarbeiter)}`);
+
   const blockierungen = await prisma.blockierung.findMany();
+  w(`,"blockierungen":${JSON.stringify(blockierungen)}`);
+
   const zuweisungen = await prisma.zuweisung.findMany();
+  w(`,"zuweisungen":${JSON.stringify(zuweisungen)}`);
+
   const apVerteilungen = await prisma.aPVerteilung.findMany();
+  w(`,"apVerteilungen":${JSON.stringify(apVerteilungen)}`);
+
   const feiertage = await prisma.feiertag.findMany();
+  w(`,"feiertage":${JSON.stringify(feiertage)}`);
+
   const exportLog = await prisma.exportLog.findMany();
-  const aenderungsLog = await prisma.aenderungsLog.findMany({ orderBy: { zeitpunkt: 'desc' } });
+  w(`,"exportLog":${JSON.stringify(exportLog)}`);
+
+  // Änderungslog in Batches streamen (kann sehr groß werden)
+  w(',"aenderungsLog":[');
+  const BATCH_SIZE = 2000;
+  let offset = 0;
+  let firstEntry = true;
+  while (true) {
+    const batch = await prisma.aenderungsLog.findMany({
+      orderBy: { zeitpunkt: 'desc' },
+      skip: offset,
+      take: BATCH_SIZE,
+    });
+    for (const entry of batch) {
+      if (!firstEntry) w(',');
+      w(JSON.stringify(entry));
+      firstEntry = false;
+    }
+    if (batch.length < BATCH_SIZE) break;
+    offset += BATCH_SIZE;
+  }
+  w(']');
+
   const exportCounter = await prisma.exportCounter.findMany();
+  w(`,"exportCounter":${JSON.stringify(exportCounter)}`);
 
-  const data = {
-    users,
-    ueberProjekte,
-    projekte,
-    arbeitspakete,
-    mitarbeiter,
-    blockierungen,
-    zuweisungen,
-    apVerteilungen,
-    feiertage,
-    exportLog,
-    aenderungsLog,
-    exportCounter,
-  };
+  // Daten-Objekt schließen
+  w('}');
 
-  const integrityHash = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-
-  return {
-    exportedAt: new Date().toISOString(),
-    version: '2.1',
-    integrityHash,
-    data,
-  };
+  // Integritäts-Hash anhängen und Response beenden
+  const integrityHash = hash.digest('hex');
+  res.write(`,"integrityHash":"${integrityHash}"}`);
+  res.end();
 }
 
 // JSON-Import (überschreibt ALLE Daten — nur Admin)

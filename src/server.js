@@ -19,6 +19,8 @@ import exportRoutes from './routes/export.routes.js';
 import aenderungslogRoutes from './routes/aenderungslog.routes.js';
 import papierkorbRoutes from './routes/papierkorb.routes.js';
 import backupRoutes from './routes/backup.routes.js';
+import sessionLogRoutes from './routes/sessionLog.routes.js';
+import dokumentRoutes from './routes/dokument.routes.js';
 
 // Startup-Tasks
 import { ensureAdminExists } from './services/auth.service.js';
@@ -63,6 +65,8 @@ app.use('/api/v1/export', exportRoutes);
 app.use('/api/v1/aenderungslog', aenderungslogRoutes);
 app.use('/api/v1/papierkorb', papierkorbRoutes);
 app.use('/api/v1/backup', backupRoutes);
+app.use('/api/v1/session-logs', sessionLogRoutes);
+app.use('/api/v1', dokumentRoutes);
 
 // ─── Fehler-Handler ───────────────────────────────────────────
 app.use(notFoundHandler);

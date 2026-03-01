@@ -13,7 +13,7 @@ const COOKIE_OPTIONS = {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const result = await authService.login(email, password);
+  const result = await authService.login(email, password, { ip: req.ip, userAgent: req.get('user-agent') });
 
   // Set refresh token as HttpOnly cookie
   res.cookie(REFRESH_COOKIE, result.refreshToken, COOKIE_OPTIONS);
@@ -40,7 +40,7 @@ export const refresh = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  await authService.logout(req.user.id);
+  await authService.logout(req.user.id, { ip: req.ip, userAgent: req.get('user-agent') });
 
   // Clear refresh token cookie
   res.clearCookie(REFRESH_COOKIE, {
@@ -55,7 +55,7 @@ export const logout = asyncHandler(async (req, res) => {
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
-  await authService.changePassword(req.user.id, currentPassword, newPassword);
+  await authService.changePassword(req.user.id, currentPassword, newPassword, { ip: req.ip, userAgent: req.get('user-agent') });
 
   // Clear refresh token cookie (forces re-login)
   res.clearCookie(REFRESH_COOKIE, {
@@ -71,4 +71,17 @@ export const changePassword = asyncHandler(async (req, res) => {
 export const me = asyncHandler(async (req, res) => {
   const user = await authService.getCurrentUser(req.user.id);
   res.json(user);
+});
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  await authService.requestPasswordReset(email);
+  // Always return success to prevent email enumeration
+  res.json({ message: 'Wenn ein Konto mit dieser E-Mail existiert, wurde ein Reset-Link gesendet.' });
+});
+
+export const resetPasswordHandler = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+  await authService.resetPassword(token, newPassword);
+  res.json({ message: 'Passwort erfolgreich zurückgesetzt. Bitte melden Sie sich an.' });
 });

@@ -4,7 +4,9 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/database.js';
 import { config } from '../config/env.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendPasswordResetEmail } from './email.service.js';
 import { logChange } from './auditLog.service.js';
+import { logSession } from './sessionLog.service.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -37,12 +39,13 @@ function generateRefreshToken(user) {
 }
 
 // Login
-export async function login(email, password) {
+export async function login(email, password, { ip, userAgent } = {}) {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
   });
 
   if (!user) {
+    logSession({ email, aktion: 'login_failed', ip, userAgent, details: 'Benutzer nicht gefunden' }).catch(() => {});
     throw new AppError('Ungültige Anmeldedaten.', 401);
   }
 
@@ -52,6 +55,7 @@ export async function login(email, password) {
 
   // Account-Lockout prüfen
   if (user.lockedUntil && user.lockedUntil > new Date()) {
+    logSession({ userId: user.id, email, aktion: 'login_failed', ip, userAgent, details: 'Konto gesperrt' }).catch(() => {});
     throw new AppError('Konto gesperrt. Bitte versuchen Sie es in 15 Minuten erneut.', 423);
   }
 
@@ -66,6 +70,7 @@ export async function login(email, password) {
       where: { id: user.id },
       data: lockData,
     });
+    logSession({ userId: user.id, email, aktion: 'login_failed', ip, userAgent, details: 'Falsches Passwort' }).catch(() => {});
     throw new AppError('Ungültige Anmeldedaten.', 401);
   }
 
@@ -82,6 +87,8 @@ export async function login(email, password) {
       lockedUntil: null,
     },
   });
+
+  logSession({ userId: user.id, email, aktion: 'login_success', ip, userAgent }).catch(() => {});
 
   return {
     accessToken,
@@ -133,15 +140,16 @@ export async function refreshTokens(oldRefreshToken) {
 }
 
 // Logout
-export async function logout(userId) {
+export async function logout(userId, { ip, userAgent } = {}) {
   await prisma.user.update({
     where: { id: userId },
     data: { refreshToken: null },
   });
+  logSession({ userId, email: '', aktion: 'logout', ip, userAgent }).catch(() => {});
 }
 
 // Passwort ändern
-export async function changePassword(userId, currentPassword, newPassword) {
+export async function changePassword(userId, currentPassword, newPassword, { ip, userAgent } = {}) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
   });
@@ -174,6 +182,8 @@ export async function changePassword(userId, currentPassword, newPassword) {
     name: user.name,
     details: `Passwort für "${user.name}" (${user.email}) geändert.`,
   });
+
+  logSession({ userId, aktion: 'password_changed', email: '', ip, userAgent }).catch(() => {});
 }
 
 // Aktuellen Benutzer abrufen
@@ -217,6 +227,53 @@ export async function ensureAdminExists() {
 
     console.log(`Admin-Account erstellt: ${config.admin.email}`);
   }
+}
+
+// Passwort-Reset anfordern
+export async function requestPasswordReset(email) {
+  const user = await prisma.user.findFirst({ where: { email: email.toLowerCase().trim() } });
+  if (!user) return; // No error — prevent email enumeration
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    },
+  });
+
+  const resetUrl = `${config.frontendUrl}#/reset-password?token=${token}`;
+  await sendPasswordResetEmail(email, resetUrl);
+}
+
+// Passwort zurücksetzen
+export async function resetPassword(token, newPassword) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetToken: tokenHash,
+      passwordResetExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    throw new AppError('Ungültiger oder abgelaufener Reset-Token.', 400);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      passwordResetToken: null,
+      passwordResetExpires: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+  });
 }
 
 // Passwort hashen (für User-Service)

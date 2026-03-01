@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authLimiter, generalLimiter } from '../config/security.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
-import { loginSchema, changePasswordSchema, refreshSchema } from '../validators/auth.validator.js';
+import { loginSchema, changePasswordSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator.js';
 import * as authController from '../controllers/auth.controller.js';
 
 const router = Router();
@@ -21,5 +21,11 @@ router.post('/change-password', authenticate, validate(changePasswordSchema), au
 
 // GET /api/v1/auth/me (geschützt)
 router.get('/me', authenticate, authController.me);
+
+// POST /api/v1/auth/forgot-password
+router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
+
+// POST /api/v1/auth/reset-password
+router.post('/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPasswordHandler);
 
 export default router;
