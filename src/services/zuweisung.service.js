@@ -74,6 +74,23 @@ export async function create(projektId, data, userId) {
           prozentAnteil: apv.prozentAnteil,
         })),
       });
+
+      // GoBD: Jede AP-Verteilung im Audit-Log vermerken
+      const createdAPVs = await tx.aPVerteilung.findMany({
+        where: { zuweisungId: zuw.id },
+      });
+      for (const av of createdAPVs) {
+        await logChange({
+          userId,
+          aktion: 'erstellt',
+          entitaet: 'APVerteilung',
+          entitaetId: av.id,
+          name: 'AP-Verteilung',
+          details: `AP-Verteilung für Zuweisung erstellt: ${av.prozentAnteil}%`,
+          nachherJson: av,
+          tx,
+        });
+      }
     }
 
     await logChange({
@@ -128,6 +145,22 @@ export async function update(id, data, userId) {
           throw new AppError(`AP-Verteilung darf maximal 100% betragen (aktuell: ${apSum}%).`, 400);
         }
       }
+
+      // GoBD: Bestehende AP-Verteilungen vor Löschung loggen
+      const oldAPVs = await tx.aPVerteilung.findMany({ where: { zuweisungId: id } });
+      for (const av of oldAPVs) {
+        await logChange({
+          userId,
+          aktion: 'gelöscht',
+          entitaet: 'APVerteilung',
+          entitaetId: av.id,
+          name: 'AP-Verteilung',
+          details: `AP-Verteilung gelöscht: ${av.prozentAnteil}%`,
+          vorherJson: av,
+          tx,
+        });
+      }
+
       await tx.aPVerteilung.deleteMany({ where: { zuweisungId: id } });
       if (data.arbeitspaketVerteilung.length > 0) {
         await tx.aPVerteilung.createMany({
@@ -137,6 +170,21 @@ export async function update(id, data, userId) {
             prozentAnteil: apv.prozentAnteil,
           })),
         });
+
+        // GoBD: Neue AP-Verteilungen loggen
+        const newAPVs = await tx.aPVerteilung.findMany({ where: { zuweisungId: id } });
+        for (const av of newAPVs) {
+          await logChange({
+            userId,
+            aktion: 'erstellt',
+            entitaet: 'APVerteilung',
+            entitaetId: av.id,
+            name: 'AP-Verteilung',
+            details: `AP-Verteilung für Zuweisung erstellt: ${av.prozentAnteil}%`,
+            nachherJson: av,
+            tx,
+          });
+        }
       }
     }
 
@@ -162,11 +210,26 @@ export async function softDelete(id, userId) {
     include: {
       mitarbeiter: { select: { name: true } },
       projekt: { select: { name: true } },
+      apVerteilungen: true,
     },
   });
   if (!existing) throw new AppError('Zuweisung nicht gefunden.', 404);
 
   await prisma.$transaction(async (tx) => {
+    // GoBD: AP-Verteilungen vor Soft-Delete loggen
+    for (const av of existing.apVerteilungen) {
+      await logChange({
+        userId,
+        aktion: 'gelöscht',
+        entitaet: 'APVerteilung',
+        entitaetId: av.id,
+        name: 'AP-Verteilung',
+        details: `AP-Verteilung gelöscht: ${av.prozentAnteil}%`,
+        vorherJson: av,
+        tx,
+      });
+    }
+
     await tx.zuweisung.update({
       where: { id },
       data: { deletedAt: new Date(), deletedBy: userId },

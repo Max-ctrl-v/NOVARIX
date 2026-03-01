@@ -46,3 +46,14 @@ export const authLimiter = rateLimit({
     error: 'Zu viele Login-Versuche. Bitte warten Sie 15 Minuten.',
   },
 });
+
+// Rate Limiting — Backup/Export-Endpoints (5 Requests pro 15 Min)
+export const backupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Zu viele Backup-Anfragen. Bitte warten Sie 15 Minuten.',
+  },
+});

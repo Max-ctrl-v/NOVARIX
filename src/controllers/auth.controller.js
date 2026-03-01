@@ -1,30 +1,70 @@
 import * as authService from '../services/auth.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { config } from '../config/env.js';
+
+const REFRESH_COOKIE = 'novarix_refresh';
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: config.isProd,
+  sameSite: config.isProd ? 'none' : 'lax',
+  path: '/api/v1/auth',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const result = await authService.login(email, password);
+
+  // Set refresh token as HttpOnly cookie
+  res.cookie(REFRESH_COOKIE, result.refreshToken, COOKIE_OPTIONS);
+
   res.json({
     accessToken: result.accessToken,
-    refreshToken: result.refreshToken,
     user: result.user,
   });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
+  // Read refresh token from cookie (fallback to body for backwards compat)
+  const refreshToken = req.cookies?.[REFRESH_COOKIE] || req.body?.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Kein Refresh Token vorhanden.' });
+  }
+
   const tokens = await authService.refreshTokens(refreshToken);
-  res.json(tokens);
+
+  // Set new refresh token cookie
+  res.cookie(REFRESH_COOKIE, tokens.refreshToken, COOKIE_OPTIONS);
+
+  res.json({ accessToken: tokens.accessToken });
 });
 
 export const logout = asyncHandler(async (req, res) => {
   await authService.logout(req.user.id);
+
+  // Clear refresh token cookie
+  res.clearCookie(REFRESH_COOKIE, {
+    httpOnly: true,
+    secure: config.isProd,
+    sameSite: config.isProd ? 'none' : 'lax',
+    path: '/api/v1/auth',
+  });
+
   res.json({ message: 'Erfolgreich abgemeldet.' });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   await authService.changePassword(req.user.id, currentPassword, newPassword);
+
+  // Clear refresh token cookie (forces re-login)
+  res.clearCookie(REFRESH_COOKIE, {
+    httpOnly: true,
+    secure: config.isProd,
+    sameSite: config.isProd ? 'none' : 'lax',
+    path: '/api/v1/auth',
+  });
+
   res.json({ message: 'Passwort erfolgreich geändert.' });
 });
 

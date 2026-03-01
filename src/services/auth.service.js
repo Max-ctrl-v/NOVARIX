@@ -50,20 +50,36 @@ export async function login(email, password) {
     throw new AppError('Dieser Account wurde deaktiviert.', 401);
   }
 
+  // Account-Lockout prüfen
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    throw new AppError('Konto gesperrt. Bitte versuchen Sie es in 15 Minuten erneut.', 423);
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    const attempts = user.failedLoginAttempts + 1;
+    const lockData = { failedLoginAttempts: attempts };
+    if (attempts >= 5) {
+      lockData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: lockData,
+    });
     throw new AppError('Ungültige Anmeldedaten.', 401);
   }
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // Refresh Token gehasht in DB speichern + lastLogin aktualisieren
+  // Refresh Token gehasht in DB speichern + lastLogin aktualisieren + Lockout zurücksetzen
   await prisma.user.update({
     where: { id: user.id },
     data: {
       refreshToken: hashToken(refreshToken),
       lastLogin: new Date(),
+      failedLoginAttempts: 0,
+      lockedUntil: null,
     },
   });
 

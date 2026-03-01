@@ -22,7 +22,5 @@ export const changePasswordSchema = Joi.object({
 });
 
 export const refreshSchema = Joi.object({
-  refreshToken: Joi.string().required().messages({
-    'any.required': 'Refresh Token ist erforderlich.',
-  }),
+  refreshToken: Joi.string().optional(), // Token comes from HttpOnly cookie; body is fallback
 });

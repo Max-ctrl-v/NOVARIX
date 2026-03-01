@@ -49,8 +49,10 @@ model User {
   passwordHash  String    @map("password_hash") @db.VarChar(255)
   name          String    @db.VarChar(255)
   role          UserRole  @default(viewer)
-  refreshToken  String?   @map("refresh_token") @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  refreshToken        String?   @map("refresh_token") @db.Text
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime? @updatedAt @map("updated_at") @db.Timestamptz
   lastLogin     DateTime? @map("last_login") @db.Timestamptz
 

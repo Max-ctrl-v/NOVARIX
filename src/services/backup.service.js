@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import prisma from '../config/database.js';
 import { logChange } from './auditLog.service.js';
 import { AppError } from '../middleware/errorHandler.js';
@@ -19,26 +20,31 @@ export async function exportAll() {
   const apVerteilungen = await prisma.aPVerteilung.findMany();
   const feiertage = await prisma.feiertag.findMany();
   const exportLog = await prisma.exportLog.findMany();
-  const aenderungsLog = await prisma.aenderungsLog.findMany({ orderBy: { zeitpunkt: 'desc' }, take: 10000 });
+  const aenderungsLog = await prisma.aenderungsLog.findMany({ orderBy: { zeitpunkt: 'desc' } });
   const exportCounter = await prisma.exportCounter.findMany();
+
+  const data = {
+    users,
+    ueberProjekte,
+    projekte,
+    arbeitspakete,
+    mitarbeiter,
+    blockierungen,
+    zuweisungen,
+    apVerteilungen,
+    feiertage,
+    exportLog,
+    aenderungsLog,
+    exportCounter,
+  };
+
+  const integrityHash = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 
   return {
     exportedAt: new Date().toISOString(),
     version: '2.1',
-    data: {
-      users,
-      ueberProjekte,
-      projekte,
-      arbeitspakete,
-      mitarbeiter,
-      blockierungen,
-      zuweisungen,
-      apVerteilungen,
-      feiertage,
-      exportLog,
-      aenderungsLog,
-      exportCounter,
-    },
+    integrityHash,
+    data,
   };
 }
 
@@ -46,6 +52,14 @@ export async function exportAll() {
 export async function importAll(importData, userId) {
   if (!importData || !importData.data) {
     throw new AppError('Ungültiges Import-Format. Erwartet: { data: { ... } }', 400);
+  }
+
+  // Backup-Integrität prüfen (falls Hash vorhanden)
+  if (importData.integrityHash) {
+    const computedHash = crypto.createHash('sha256').update(JSON.stringify(importData.data)).digest('hex');
+    if (computedHash !== importData.integrityHash) {
+      throw new AppError('Backup-Integrität verletzt. Die Daten wurden möglicherweise manipuliert.', 400);
+    }
   }
 
   const d = importData.data;

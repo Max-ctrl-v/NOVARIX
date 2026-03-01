@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { config } from './config/env.js';
 import { helmetConfig, corsConfig, generalLimiter } from './config/security.js';
@@ -35,6 +36,9 @@ app.use(generalLimiter);
 
 // ─── Request Logging ─────────────────────────────────────────
 app.use(morgan(config.isProd ? 'combined' : 'dev'));
+
+// ─── Cookie Parser ───────────────────────────────────────────
+app.use(cookieParser());
 
 // ─── Body Parser ──────────────────────────────────────────────
 app.use('/api/v1/backup', express.json({ limit: '50mb' }));

@@ -6,8 +6,12 @@ import { AppError } from './errorHandler.js';
 export function authenticate(req, _res, next) {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     throw new AppError('Nicht authentifiziert. Bitte einloggen.', 401);
+  }
+
+  if (!authHeader.startsWith('Bearer ')) {
+    throw new AppError('Ungültiges Token-Format.', 401);
   }
 
   const token = authHeader.split(' ')[1];

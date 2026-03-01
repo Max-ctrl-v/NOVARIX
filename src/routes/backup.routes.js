@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { authorize } from '../middleware/authorize.js';
+import { backupLimiter } from '../config/security.js';
 import * as controller from '../controllers/backup.controller.js';
 
 const router = Router();
 
 router.use(authenticate, authorize('admin'));
+router.use(backupLimiter);
 
 // GET /api/v1/backup/export — Kompletter JSON-Export
 router.get('/export', controller.exportAll);
