@@ -63,7 +63,7 @@ export async function update(id, data, actingUserId) {
 
   // Letzten Admin schützen: Rolle darf nicht geändert werden
   if (data.role && data.role !== 'admin' && existing.role === 'admin') {
-    const adminCount = await prisma.user.count({ where: { role: 'admin', deletedAt: null } });
+    const adminCount = await prisma.user.count({ where: { role: 'admin', email: { not: { startsWith: 'deleted_' } } } });
     if (adminCount <= 1) {
       throw new AppError('Der letzte Admin kann nicht herabgestuft werden.', 400);
     }
@@ -112,7 +112,7 @@ export async function remove(id, actingUserId) {
 
   // Letzten Admin schützen
   if (user.role === 'admin') {
-    const adminCount = await prisma.user.count({ where: { role: 'admin', deletedAt: null } });
+    const adminCount = await prisma.user.count({ where: { role: 'admin', email: { not: { startsWith: 'deleted_' } } } });
     if (adminCount <= 1) {
       throw new AppError('Der letzte Admin kann nicht gelöscht werden.', 400);
     }
