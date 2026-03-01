@@ -65,7 +65,11 @@ export async function update(id, data, actingUserId) {
   if (data.email) updateData.email = data.email.toLowerCase().trim();
   if (data.name) updateData.name = data.name;
   if (data.role) updateData.role = data.role;
-  if (data.password) updateData.passwordHash = await hashPassword(data.password);
+  if (data.password) {
+    updateData.passwordHash = await hashPassword(data.password);
+    updateData.failedLoginAttempts = 0;
+    updateData.lockedUntil = null;
+  }
 
   const user = await prisma.user.update({
     where: { id },
