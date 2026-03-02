@@ -7,8 +7,20 @@ export const upload = asyncHandler(async (req, res) => {
   res.status(201).json(doc);
 });
 
+export const uploadGeneric = asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+  const doc = await dokumentService.uploadGeneric(req.file, req.user.id);
+  res.status(201).json(doc);
+});
+
 export const list = asyncHandler(async (req, res) => {
   const docs = await dokumentService.listByProjekt(req.params.projektId);
+  res.json(docs);
+});
+
+export const listByIds = asyncHandler(async (req, res) => {
+  const ids = req.query.ids ? req.query.ids.split(',').filter(Boolean) : [];
+  const docs = await dokumentService.listByIds(ids);
   res.json(docs);
 });
 

@@ -327,7 +327,7 @@ model ExportCounter {
 
 model Dokument {
   id        String   @id @default(uuid()) @db.Uuid
-  projektId String   @map("projekt_id") @db.Uuid
+  projektId String?  @map("projekt_id") @db.Uuid
   name      String   @db.VarChar(500)
   size      Int
   mimeType  String   @map("mime_type") @db.VarChar(100)
@@ -335,7 +335,7 @@ model Dokument {
   createdBy String?  @map("created_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  projekt Projekt @relation(fields: [projektId], references: [id])
+  projekt Projekt? @relation(fields: [projektId], references: [id])
 
   @@index([projektId])
   @@map("dokumente")

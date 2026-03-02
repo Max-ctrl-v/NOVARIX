@@ -20,6 +20,10 @@ router.use(authenticate);
 router.post('/projekte/:projektId/dokumente', authorize('admin', 'editor'), upload.single('file'), controller.upload);
 router.get('/projekte/:projektId/dokumente', controller.list);
 
+// Generic document upload (no project association)
+router.post('/dokumente/upload', authorize('admin', 'editor'), upload.single('file'), controller.uploadGeneric);
+router.get('/dokumente/by-ids', controller.listByIds);
+
 // Single document
 router.get('/dokumente/:id/download', controller.download);
 router.delete('/dokumente/:id', authorize('admin', 'editor'), controller.remove);
