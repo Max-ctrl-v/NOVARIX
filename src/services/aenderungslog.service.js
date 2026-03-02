@@ -1,6 +1,9 @@
 import prisma from '../config/database.js';
 
 export async function getAll({ aktion, entitaet, limit = 200, offset = 0 } = {}) {
+  const take = Math.min(Math.max(limit, 1), 1000);
+  const skip = Math.max(offset, 0);
+
   const where = {};
   if (aktion) where.aktion = aktion;
   if (entitaet) where.entitaet = entitaet;
@@ -12,11 +15,11 @@ export async function getAll({ aktion, entitaet, limit = 200, offset = 0 } = {})
         user: { select: { name: true, email: true } },
       },
       orderBy: { zeitpunkt: 'desc' },
-      take: limit,
-      skip: offset,
+      take,
+      skip,
     }),
     prisma.aenderungsLog.count({ where }),
   ]);
 
-  return { logs, total, limit, offset };
+  return { logs, total, limit: take, offset: skip };
 }

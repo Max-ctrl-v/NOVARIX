@@ -2,8 +2,7 @@ import prisma from '../config/database.js';
 import { logChange } from './auditLog.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
-// System-User ID für automatische Bereinigungen (Cron-Jobs)
-const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+// System cleanup uses null userId (AenderungsLog.userId is nullable)
 
 // Alle gelöschten Objekte abrufen (gruppiert nach Typ)
 export async function getAll() {
@@ -329,7 +328,7 @@ export async function cleanupOldTrash() {
 
     for (const item of items) {
       try {
-        await permanentDelete(item.id, SYSTEM_USER_ID);
+        await permanentDelete(item.id, null);
         totalDeleted++;
       } catch {
         // Bereits gelöscht durch Kaskade

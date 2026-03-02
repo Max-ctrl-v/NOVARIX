@@ -38,8 +38,8 @@ function generateRefreshToken(user) {
   );
 }
 
-// Dummy-Hash für Timing-Attack-Schutz (einmalig generiert)
-const DUMMY_HASH = '$2b$12$LJ3m4ys3Lz0QqV8Fz8z8z.DUMMY000000000000000000000000000';
+// Dummy-Hash für Timing-Attack-Schutz (valid bcrypt hash, generated at startup)
+const DUMMY_HASH = bcrypt.hashSync('timing-attack-dummy', BCRYPT_ROUNDS);
 
 // Login
 export async function login(email, password, { ip, userAgent } = {}) {
