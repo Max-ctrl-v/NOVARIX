@@ -19,7 +19,7 @@ export function countBlockedDays(blockierungen, feiertage, startStr, endStr, fei
   const end = new Date(endStr);
   const blockedSet = new Set();
 
-  // Blockierungen (Urlaub/Krank)
+  // Blockierungen (Urlaub/Krank/Feiertag)
   for (const b of blockierungen) {
     const bStart = new Date(b.von);
     const bEnd = new Date(b.bis);

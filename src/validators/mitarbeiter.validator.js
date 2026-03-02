@@ -32,11 +32,11 @@ const validateDateRange = (value, helpers) => {
 export const createBlockierungSchema = Joi.object({
   von: Joi.string().isoDate().required(),
   bis: Joi.string().isoDate().required(),
-  typ: Joi.string().valid('urlaub', 'krank').required(),
+  typ: Joi.string().valid('urlaub', 'krank', 'feiertag').required(),
 }).custom(validateDateRange);
 
 export const updateBlockierungSchema = Joi.object({
   von: Joi.string().isoDate(),
   bis: Joi.string().isoDate(),
-  typ: Joi.string().valid('urlaub', 'krank'),
+  typ: Joi.string().valid('urlaub', 'krank', 'feiertag'),
 }).min(1).custom(validateDateRange);

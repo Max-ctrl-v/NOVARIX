@@ -32,7 +32,7 @@ export async function create(mitarbeiterId, data, userId) {
     entitaet: 'Blockierung',
     entitaetId: blockierung.id,
     name: `${data.typ} (${ma.name})`,
-    details: `${data.typ === 'urlaub' ? 'Urlaub' : 'Krankheit'} für "${ma.name}" von ${data.von} bis ${data.bis} erstellt.`,
+    details: `${data.typ === 'urlaub' ? 'Urlaub' : data.typ === 'krank' ? 'Krankheit' : 'Feiertag'} für "${ma.name}" von ${data.von} bis ${data.bis} erstellt.`,
     nachherJson: blockierung,
   });
 

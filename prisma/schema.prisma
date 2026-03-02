@@ -39,6 +39,7 @@ enum APStatus {
 enum BlockierungsTyp {
   urlaub
   krank
+  feiertag
 }
 
 // ─── Benutzer ─────────────────────────────────────────────────
