@@ -25,6 +25,7 @@ import dokumentRoutes from './routes/dokument.routes.js';
 // Startup-Tasks
 import { ensureAdminExists } from './services/auth.service.js';
 import { startTrashCleanup } from './jobs/trashCleanup.js';
+import prisma from './config/database.js';
 
 const app = express();
 
@@ -81,6 +82,37 @@ const server = app.listen(config.port, '0.0.0.0', async () => {
     await ensureAdminExists();
   } catch (err) {
     console.error('KRITISCH: Admin-Account konnte nicht sichergestellt werden – Datenbank erreichbar?', err);
+  }
+
+  // One-time fix: assign employees to their companies (ueberProjektId was missing in migration)
+  try {
+    const seedMapping = {
+      'd0000001-0001-4000-a000-000000000001': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0002-4000-a000-000000000002': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0003-4000-a000-000000000003': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0004-4000-a000-000000000004': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0005-4000-a000-000000000005': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0006-4000-a000-000000000006': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0007-4000-a000-000000000007': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0008-4000-a000-000000000008': 'a0000002-2222-4000-a000-000000000002',
+      'd0000001-0009-4000-a000-000000000009': 'a0000001-1111-4000-a000-000000000001',
+      'd0000001-0010-4000-a000-000000000010': 'a0000001-1111-4000-a000-000000000001',
+    };
+    const orphans = await prisma.mitarbeiter.findMany({
+      where: { ueberProjektId: null, deletedAt: null },
+      include: { zuweisungen: { select: { ueberProjektId: true }, take: 1 } },
+    });
+    let fixed = 0;
+    for (const ma of orphans) {
+      const upId = seedMapping[ma.id] || ma.zuweisungen[0]?.ueberProjektId || null;
+      if (upId) {
+        await prisma.mitarbeiter.update({ where: { id: ma.id }, data: { ueberProjektId: upId } });
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`Startup-Fix: ${fixed} Mitarbeiter ueberProjektId korrigiert.`);
+  } catch (err) {
+    console.warn('Startup-Fix für Mitarbeiter fehlgeschlagen:', err.message);
   }
 
   // Cron-Jobs starten
