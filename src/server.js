@@ -52,6 +52,28 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ─── TEMPORARY: Wipe all data (remove after use) ─────────────
+app.post('/api/v1/reset-all-data', async (_req, res) => {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.aPVerteilung.deleteMany();
+      await tx.zuweisung.deleteMany();
+      await tx.blockierung.deleteMany();
+      await tx.arbeitspaket.deleteMany();
+      await tx.projekt.deleteMany();
+      await tx.mitarbeiter.deleteMany();
+      await tx.ueberProjekt.deleteMany();
+      await tx.feiertag.deleteMany();
+      await tx.exportLog.deleteMany();
+      await tx.exportCounter.deleteMany();
+      await tx.aenderungsLog.deleteMany();
+    });
+    res.json({ message: 'All data wiped successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── API Routes ───────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
