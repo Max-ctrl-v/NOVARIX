@@ -91,12 +91,13 @@ export async function importAll(importData, userId) {
     throw new AppError('Ungültiges Import-Format. Erwartet: { data: { ... } }', 400);
   }
 
-  // Backup-Integrität prüfen (falls Hash vorhanden)
-  if (importData.integrityHash) {
-    const computedHash = crypto.createHash('sha256').update(JSON.stringify(importData.data)).digest('hex');
-    if (computedHash !== importData.integrityHash) {
-      throw new AppError('Backup-Integrität verletzt. Die Daten wurden möglicherweise manipuliert.', 400);
-    }
+  // Backup-Integrität prüfen (Hash ist Pflicht)
+  if (!importData.integrityHash) {
+    throw new AppError('Backup-Import abgelehnt: integrityHash fehlt. GoBD-Pflicht.', 400);
+  }
+  const computedHash = crypto.createHash('sha256').update(JSON.stringify(importData.data)).digest('hex');
+  if (computedHash !== importData.integrityHash) {
+    throw new AppError('Backup-Integrität verletzt. Die Daten wurden möglicherweise manipuliert.', 400);
   }
 
   const d = importData.data;
