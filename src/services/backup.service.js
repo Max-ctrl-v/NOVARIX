@@ -183,6 +183,17 @@ export async function importFromLocalStorage(localStorageData, userId) {
   const d = localStorageData;
 
   await prisma.$transaction(async (tx) => {
+    // Clear existing data first to avoid conflicts
+    await tx.aPVerteilung.deleteMany();
+    await tx.zuweisung.deleteMany();
+    await tx.blockierung.deleteMany();
+    await tx.arbeitspaket.deleteMany();
+    await tx.projekt.deleteMany();
+    await tx.mitarbeiter.deleteMany();
+    await tx.ueberProjekt.deleteMany();
+    await tx.feiertag.deleteMany();
+    await tx.exportLog.deleteMany();
+    await tx.exportCounter.deleteMany();
     // Über-Projekte importieren
     if (d.ueberProjekte?.length) {
       for (const up of d.ueberProjekte) {

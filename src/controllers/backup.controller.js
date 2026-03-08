@@ -11,6 +11,11 @@ export const importAll = asyncHandler(async (req, res) => {
 });
 
 export const importFromLocalStorage = asyncHandler(async (req, res) => {
-  const result = await service.importFromLocalStorage(req.body, req.user.id);
-  res.json(result);
+  try {
+    const result = await service.importFromLocalStorage(req.body, req.user.id);
+    res.json(result);
+  } catch (err) {
+    console.error('migrate-localstorage FEHLER:', err.message, err.code, err.meta);
+    throw err;
+  }
 });
