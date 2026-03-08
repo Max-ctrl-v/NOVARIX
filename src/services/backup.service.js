@@ -227,6 +227,7 @@ export async function importFromLocalStorage(localStorageData, userId) {
         await tx.mitarbeiter.create({
           data: {
             id: m.id,
+            ueberProjektId: m.ueberProjektId || null,
             name: m.name,
             position: m.position || null,
             wochenStunden: m.wochenStunden || 40,
