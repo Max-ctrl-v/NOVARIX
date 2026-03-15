@@ -2,10 +2,11 @@ import * as service from '../services/mitarbeiter.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const getAll = asyncHandler(async (req, res) => {
-  const { limit, offset } = req.query;
+  const { limit, offset, ueberProjektId } = req.query;
   const mitarbeiter = await service.getAll({
     limit: limit ? parseInt(limit, 10) : undefined,
     offset: offset ? parseInt(offset, 10) : undefined,
+    ueberProjektId,
   });
   res.json(mitarbeiter);
 });
@@ -13,6 +14,15 @@ export const getAll = asyncHandler(async (req, res) => {
 export const getById = asyncHandler(async (req, res) => {
   const ma = await service.getById(req.params.id);
   res.json(ma);
+});
+
+export const getAuslastung = asyncHandler(async (req, res) => {
+  const { von, bis } = req.query;
+  if (!von || !bis) {
+    return res.status(400).json({ message: 'Parameter von und bis erforderlich.' });
+  }
+  const result = await service.getAuslastung(req.params.id, von, bis);
+  res.json(result);
 });
 
 export const create = asyncHandler(async (req, res) => {

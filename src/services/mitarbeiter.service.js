@@ -4,14 +4,18 @@ import { AppError } from '../middleware/errorHandler.js';
 
 const notDeleted = { deletedAt: null };
 
-export async function getAll({ limit = 100, offset = 0 } = {}) {
+export async function getAll({ limit = 100, offset = 0, ueberProjektId } = {}) {
   const take = Math.min(Math.max(limit, 1), 500);
   const skip = Math.max(offset, 0);
 
+  const where = { ...notDeleted };
+  if (ueberProjektId) where.ueberProjektId = ueberProjektId;
+
   const [mitarbeiter, total] = await Promise.all([
     prisma.mitarbeiter.findMany({
-      where: notDeleted,
+      where,
       include: {
+        ueberProjekt: { select: { id: true, name: true } },
         blockierungen: {
           where: notDeleted,
           orderBy: { von: 'asc' },
@@ -25,7 +29,7 @@ export async function getAll({ limit = 100, offset = 0 } = {}) {
       take,
       skip,
     }),
-    prisma.mitarbeiter.count({ where: notDeleted }),
+    prisma.mitarbeiter.count({ where }),
   ]);
 
   return {
@@ -44,6 +48,7 @@ export async function getById(id) {
   const ma = await prisma.mitarbeiter.findFirst({
     where: { id, ...notDeleted },
     include: {
+      ueberProjekt: { select: { id: true, name: true } },
       blockierungen: {
         where: notDeleted,
         orderBy: { von: 'asc' },
@@ -70,6 +75,7 @@ export async function getById(id) {
 export async function create(data, userId) {
   const ma = await prisma.mitarbeiter.create({
     data: {
+      ueberProjektId: data.ueberProjektId || null,
       name: data.name,
       position: data.position || null,
       wochenStunden: data.wochenStunden,
@@ -113,6 +119,7 @@ export async function update(id, data, userId) {
   if (data.jahresgehalt !== undefined) updateData.jahresgehalt = data.jahresgehalt;
   if (data.lohnnebenkosten !== undefined) updateData.lohnnebenkosten = data.lohnnebenkosten;
   if (data.feiertagePflicht !== undefined) updateData.feiertagePflicht = data.feiertagePflicht;
+  if (data.ueberProjektId !== undefined) updateData.ueberProjektId = data.ueberProjektId;
 
   const ma = await prisma.mitarbeiter.update({
     where: { id },
@@ -131,6 +138,24 @@ export async function update(id, data, userId) {
   });
 
   return ma;
+}
+
+export async function getAuslastung(id, von, bis) {
+  const ma = await prisma.mitarbeiter.findFirst({ where: { id, ...notDeleted } });
+  if (!ma) throw new AppError('Mitarbeiter nicht gefunden.', 404);
+
+  const zuweisungen = await prisma.zuweisung.findMany({
+    where: {
+      mitarbeiterId: id,
+      ...notDeleted,
+      von: { lte: new Date(bis) },
+      bis: { gte: new Date(von) },
+    },
+    include: { projekt: { select: { id: true, name: true } } },
+  });
+
+  const totalProzent = zuweisungen.reduce((s, z) => s + Number(z.prozentAnteil), 0);
+  return { zuweisungen, totalProzent };
 }
 
 export async function softDelete(id, userId) {

@@ -1,6 +1,7 @@
 import Joi from 'joi';
 
 export const createMitarbeiterSchema = Joi.object({
+  ueberProjektId: Joi.string().uuid().required(),
   name: Joi.string().min(1).max(255).required(),
   position: Joi.string().max(255).allow('', null),
   wochenStunden: Joi.number().min(1).max(60).default(40),
@@ -11,6 +12,7 @@ export const createMitarbeiterSchema = Joi.object({
 });
 
 export const updateMitarbeiterSchema = Joi.object({
+  ueberProjektId: Joi.string().uuid(),
   name: Joi.string().min(1).max(255),
   position: Joi.string().max(255).allow('', null),
   wochenStunden: Joi.number().min(1).max(60),

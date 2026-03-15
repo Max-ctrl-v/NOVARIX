@@ -91,10 +91,11 @@ model UeberProjekt {
   deletedBy       String?         @map("deleted_by") @db.Uuid
 
   // Relationen
-  creator   User?      @relation("CreatedByUser", fields: [createdBy], references: [id])
-  deleter   User?      @relation("DeletedByUser", fields: [deletedBy], references: [id])
-  projekte  Projekt[]
-  zuweisungen Zuweisung[]
+  creator      User?          @relation("CreatedByUser", fields: [createdBy], references: [id])
+  deleter      User?          @relation("DeletedByUser", fields: [deletedBy], references: [id])
+  projekte     Projekt[]
+  zuweisungen  Zuweisung[]
+  mitarbeiter  Mitarbeiter[]
 
   @@index([deletedAt])
   @@map("ueber_projekte")
@@ -110,6 +111,12 @@ model Projekt {
   status          ProjektStatus @default(geplant)
   startDatum      DateTime?     @map("start_datum") @db.Date
   endDatum        DateTime?     @map("end_datum") @db.Date
+  sollKosten         Decimal?  @map("soll_kosten") @db.Decimal(12, 2)
+  bescheinigteKosten Decimal?  @map("bescheinigte_kosten") @db.Decimal(12, 2)
+  foerdersatz        Decimal?  @map("foerdersatz") @db.Decimal(5, 2)
+  foerdersumme       Decimal?  @map("foerdersumme") @db.Decimal(12, 2)
+  honorarProzent     Decimal?  @map("honorar_prozent") @db.Decimal(5, 2)
+  honorar            Decimal?  @map("honorar") @db.Decimal(12, 2)
   version         Int           @default(1)
   createdBy       String?       @map("created_by") @db.Uuid
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
@@ -166,6 +173,7 @@ model Arbeitspaket {
 
 model Mitarbeiter {
   id               String    @id @default(uuid()) @db.Uuid
+  ueberProjektId   String?   @map("ueber_projekt_id") @db.Uuid
   name             String    @db.VarChar(255)
   position         String?   @db.VarChar(255)
   wochenStunden    Decimal   @default(40) @map("wochen_stunden") @db.Decimal(4, 1)
@@ -181,11 +189,13 @@ model Mitarbeiter {
   deletedBy        String?   @map("deleted_by") @db.Uuid
 
   // Relationen
+  ueberProjekt  UeberProjekt?  @relation(fields: [ueberProjektId], references: [id])
   creator       User?          @relation("MACreatedBy", fields: [createdBy], references: [id])
   deleter       User?          @relation("MADeletedBy", fields: [deletedBy], references: [id])
   blockierungen Blockierung[]
   zuweisungen   Zuweisung[]
 
+  @@index([ueberProjektId])
   @@index([deletedAt])
   @@map("mitarbeiter")
 }

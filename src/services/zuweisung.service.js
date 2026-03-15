@@ -4,6 +4,57 @@ import { AppError } from '../middleware/errorHandler.js';
 
 const notDeleted = { deletedAt: null };
 
+async function validateAllocation(mitarbeiterId, von, bis, prozentAnteil, excludeId = null) {
+  const vonDate = new Date(von);
+  const bisDate = new Date(bis);
+
+  const where = {
+    mitarbeiterId,
+    ...notDeleted,
+    von: { lte: bisDate },
+    bis: { gte: vonDate },
+  };
+  if (excludeId) where.id = { not: excludeId };
+
+  const existing = await prisma.zuweisung.findMany({
+    where,
+    select: { id: true, von: true, bis: true, prozentAnteil: true, projekt: { select: { name: true } } },
+  });
+
+  if (existing.length === 0) return;
+
+  // Sweep-line: find peak allocation across all overlapping intervals
+  const events = [];
+  for (const z of existing) {
+    events.push({ date: z.von.getTime(), delta: Number(z.prozentAnteil) });
+    const dayAfter = new Date(z.bis);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+    events.push({ date: dayAfter.getTime(), delta: -Number(z.prozentAnteil) });
+  }
+  // Add the new/updated assignment
+  events.push({ date: vonDate.getTime(), delta: Number(prozentAnteil) });
+  const dayAfterNew = new Date(bisDate);
+  dayAfterNew.setDate(dayAfterNew.getDate() + 1);
+  events.push({ date: dayAfterNew.getTime(), delta: -Number(prozentAnteil) });
+
+  events.sort((a, b) => a.date - b.date);
+
+  let current = 0;
+  let maxAlloc = 0;
+  for (const ev of events) {
+    current += ev.delta;
+    if (current > maxAlloc) maxAlloc = current;
+  }
+
+  if (maxAlloc > 100) {
+    const names = existing.map(z => `"${z.projekt.name}" (${Number(z.prozentAnteil)}%)`).join(', ');
+    throw new AppError(
+      `Überlastung: Mitarbeiter hat bereits ${names} in diesem Zeitraum. ` +
+      `Maximale Gesamtauslastung wäre ${maxAlloc}% (max. 100%).`, 400
+    );
+  }
+}
+
 export async function getByProjekt(projektId) {
   return prisma.zuweisung.findMany({
     where: { projektId, ...notDeleted },
@@ -47,6 +98,14 @@ export async function create(projektId, data, userId) {
     where: { id: data.mitarbeiterId, ...notDeleted },
   });
   if (!ma) throw new AppError('Mitarbeiter nicht gefunden.', 404);
+
+  // Company constraint: employee must belong to the same company
+  if (ma.ueberProjektId && ma.ueberProjektId !== data.ueberProjektId) {
+    throw new AppError('Mitarbeiter gehört zu einer anderen Firma.', 400);
+  }
+
+  // Allocation validation: total must not exceed 100%
+  await validateAllocation(data.mitarbeiterId, data.von, data.bis, Number(data.prozentAnteil));
 
   const zuweisung = await prisma.$transaction(async (tx) => {
     const zuw = await tx.zuweisung.create({
@@ -125,6 +184,12 @@ export async function update(id, data, userId) {
   if (data.version !== undefined && data.version !== existing.version) {
     throw new AppError('Daten wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
   }
+
+  // Allocation validation on update
+  const newProzent = data.prozentAnteil !== undefined ? Number(data.prozentAnteil) : Number(existing.prozentAnteil);
+  const newVon = data.von || existing.von;
+  const newBis = data.bis || existing.bis;
+  await validateAllocation(existing.mitarbeiterId, newVon, newBis, newProzent, id);
 
   await prisma.$transaction(async (tx) => {
     const updateData = { version: { increment: 1 } };

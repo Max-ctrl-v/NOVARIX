@@ -70,6 +70,12 @@ export async function create(ueberProjektId, data, userId) {
       status: data.status || 'geplant',
       startDatum: data.startDatum ? new Date(data.startDatum) : null,
       endDatum: data.endDatum ? new Date(data.endDatum) : null,
+      sollKosten: data.sollKosten != null ? data.sollKosten : null,
+      bescheinigteKosten: data.bescheinigteKosten != null ? data.bescheinigteKosten : null,
+      foerdersatz: data.foerdersatz != null ? data.foerdersatz : null,
+      foerdersumme: data.foerdersumme != null ? data.foerdersumme : null,
+      honorarProzent: data.honorarProzent != null ? data.honorarProzent : null,
+      honorar: data.honorar != null ? data.honorar : null,
       createdBy: userId,
     },
   });
@@ -104,6 +110,12 @@ export async function update(id, data, userId) {
   if (data.status !== undefined) updateData.status = data.status;
   if (data.startDatum !== undefined) updateData.startDatum = data.startDatum ? new Date(data.startDatum) : null;
   if (data.endDatum !== undefined) updateData.endDatum = data.endDatum ? new Date(data.endDatum) : null;
+  if (data.sollKosten !== undefined) updateData.sollKosten = data.sollKosten != null ? data.sollKosten : null;
+  if (data.bescheinigteKosten !== undefined) updateData.bescheinigteKosten = data.bescheinigteKosten != null ? data.bescheinigteKosten : null;
+  if (data.foerdersatz !== undefined) updateData.foerdersatz = data.foerdersatz != null ? data.foerdersatz : null;
+  if (data.foerdersumme !== undefined) updateData.foerdersumme = data.foerdersumme != null ? data.foerdersumme : null;
+  if (data.honorarProzent !== undefined) updateData.honorarProzent = data.honorarProzent != null ? data.honorarProzent : null;
+  if (data.honorar !== undefined) updateData.honorar = data.honorar != null ? data.honorar : null;
 
   const projekt = await prisma.projekt.update({
     where: { id },

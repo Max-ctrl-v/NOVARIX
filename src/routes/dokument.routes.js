@@ -4,12 +4,21 @@ import { authenticate } from '../middleware/auth.js';
 import { authorize } from '../middleware/authorize.js';
 import * as controller from '../controllers/dokument.controller.js';
 
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png', 'image/jpeg', 'image/gif',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/msword', 'application/vnd.ms-excel',
+  'text/csv', 'application/zip',
+]);
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'application/pdf') cb(null, true);
-    else cb(new Error('Nur PDF-Dateien sind erlaubt.'), false);
+    if (ALLOWED_MIME_TYPES.has(file.mimetype)) cb(null, true);
+    else cb(new Error('Dateityp nicht erlaubt. Erlaubt: PDF, Bilder, Word, Excel, CSV, ZIP.'), false);
   },
 });
 

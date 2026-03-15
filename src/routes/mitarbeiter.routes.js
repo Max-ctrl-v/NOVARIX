@@ -13,6 +13,7 @@ router.use(authenticate);
 // Mitarbeiter CRUD
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);
+router.get('/:id/auslastung', controller.getAuslastung);
 router.post('/', authorize('admin', 'editor'), validate(createMitarbeiterSchema), controller.create);
 router.put('/:id', authorize('admin', 'editor'), validate(updateMitarbeiterSchema), controller.update);
 router.delete('/:id', authorize('admin', 'editor'), controller.remove);
