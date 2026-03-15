@@ -24,6 +24,11 @@ enum UnternehmensTyp {
   kmu
 }
 
+enum Rechtsform {
+  gmbh
+  gmbh_co_kg
+}
+
 enum ProjektStatus {
   geplant
   aktiv
@@ -83,6 +88,7 @@ model UeberProjekt {
   name            String          @db.VarChar(255)
   beschreibung    String?         @db.Text
   unternehmensTyp UnternehmensTyp @map("unternehmens_typ")
+  rechtsform      Rechtsform      @default(gmbh)
   version         Int             @default(1)
   createdBy       String?         @map("created_by") @db.Uuid
   createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
@@ -96,9 +102,26 @@ model UeberProjekt {
   projekte     Projekt[]
   zuweisungen  Zuweisung[]
   mitarbeiter  Mitarbeiter[]
+  kommandisten Kommandist[]
 
   @@index([deletedAt])
   @@map("ueber_projekte")
+}
+
+// ─── Kommandisten (GmbH & Co KG Partner) ──────────────────────
+
+model Kommandist {
+  id              String       @id @default(uuid()) @db.Uuid
+  ueberProjektId  String       @map("ueber_projekt_id") @db.Uuid
+  name            String       @db.VarChar(255)
+  anteilProzent   Decimal      @map("anteil_prozent") @db.Decimal(5, 2)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime?    @updatedAt @map("updated_at") @db.Timestamptz
+
+  ueberProjekt    UeberProjekt @relation(fields: [ueberProjektId], references: [id])
+
+  @@index([ueberProjektId])
+  @@map("kommandisten")
 }
 
 // ─── Projekte ─────────────────────────────────────────────────

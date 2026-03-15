@@ -17,6 +17,9 @@ export async function getAll({ limit = 100, offset = 0 } = {}) {
           where: notDeleted,
           select: { id: true },
         },
+        kommandisten: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take,
@@ -41,6 +44,9 @@ export async function getById(id) {
   const firma = await prisma.ueberProjekt.findFirst({
     where: { id, ...notDeleted },
     include: {
+      kommandisten: {
+        orderBy: { createdAt: 'asc' },
+      },
       projekte: {
         where: notDeleted,
         include: {
@@ -83,8 +89,18 @@ export async function create(data, userId) {
       name: data.name,
       beschreibung: data.beschreibung || null,
       unternehmensTyp: data.unternehmensTyp,
+      rechtsform: data.rechtsform || 'gmbh',
       createdBy: userId,
+      ...(data.kommandisten && data.kommandisten.length > 0 ? {
+        kommandisten: {
+          create: data.kommandisten.map(k => ({
+            name: k.name,
+            anteilProzent: k.anteilProzent,
+          })),
+        },
+      } : {}),
     },
+    include: { kommandisten: true },
   });
 
   await logChange({
@@ -111,14 +127,31 @@ export async function update(id, data, userId) {
     throw new AppError('Daten wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
   }
 
+  const updateData = {
+    version: { increment: 1 },
+  };
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.beschreibung !== undefined) updateData.beschreibung = data.beschreibung;
+  if (data.unternehmensTyp !== undefined) updateData.unternehmensTyp = data.unternehmensTyp;
+  if (data.rechtsform !== undefined) updateData.rechtsform = data.rechtsform;
+
+  // Replace-all pattern for Kommandisten
+  if (data.kommandisten !== undefined) {
+    await prisma.kommandist.deleteMany({ where: { ueberProjektId: id } });
+    if (data.kommandisten.length > 0) {
+      updateData.kommandisten = {
+        create: data.kommandisten.map(k => ({
+          name: k.name,
+          anteilProzent: k.anteilProzent,
+        })),
+      };
+    }
+  }
+
   const firma = await prisma.ueberProjekt.update({
     where: { id },
-    data: {
-      name: data.name,
-      beschreibung: data.beschreibung,
-      unternehmensTyp: data.unternehmensTyp,
-      version: { increment: 1 },
-    },
+    data: updateData,
+    include: { kommandisten: true },
   });
 
   await logChange({
@@ -150,6 +183,9 @@ export async function softDelete(id, userId) {
       where: { id },
       data: { deletedAt: now, deletedBy: userId },
     });
+
+    // Kommandisten hard-delete (keine Audit-Pflicht für Hilfstabelle)
+    await tx.kommandist.deleteMany({ where: { ueberProjektId: id } });
 
     // Alle Projekte der Firma soft-deleten
     const projekte = await tx.projekt.findMany({
